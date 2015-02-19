@@ -14,15 +14,17 @@ function EndexObject() {
     return obj;
   };
   obj.table = function endexSpecifyTable(name, opts) {
-    tables[name] = tables[name] || {indexes: Object.create(null)};
+    tables[name] = tables[name] || {
+      indexOpts: Object.create(null), indexFunctions: Object.create(null)};
     tables[name].opts = opts || tables[name].opts || {},
     currentTable = name;
     return obj;
   };
-  obj.index = function endexSpecifyIndex(name, opts) {
+  obj.index = function endexSpecifyIndex(name, func, opts) {
     if (!currentTable) throw new Error('no table specified');
-    tables[currentTable].indexes[name] = opts ||
-      tables[currentTable].indexes[name] || {};
+    tables[currentTable].indexOpts[name] = opts || func ||
+      tables[currentTable].indexOpts[name] || {};
+    tables[currentTable].indexFunctions[name] = opts && func;
     return obj;
   };
 
@@ -63,18 +65,22 @@ function EndexObject() {
     // For each table (now that we've created all the tables)
     for (i=0; i < tableNames.length; i++) {
       tableName = tableNames[i];
-      var indexes = tables[tableName].indexes;
-      var indexNames = Object.keys(indexes);
+      var indexOpts = tables[tableName].indexOpts;
+      var indexFunctions = tables[tableName].indexFunctions;
+      var indexNames = Object.keys(indexOpts);
       // For each index to create under that table
       for (var j=0; j < indexNames.length; j++) {
         indexName = indexNames[j];
-        var indexOpts = indexes[indexName];
+        var indexOptObj = indexOpts[indexName];
+        var indexFunc = indexFunctions[indexName];
         // Add a branch ensuring that index exists
         branches.push(r.branch(
           r.table(tableName).indexList().contains(indexName),
           r.expr({created: 0}).merge(
             r.table(tableName).indexStatus(indexName)),
-          r.table(tableName).indexCreate(indexName, indexOpts).merge(
+          (indexFunc ?
+            r.table(tableName).indexCreate(indexName, indexFunc, indexOptObj) :
+            r.table(tableName).indexCreate(indexName, indexOptObj)).merge(
             r.table(tableName).indexStatus(indexName))));
       }
     }
@@ -97,7 +103,7 @@ function EndexObject() {
       start = start + tableNames.length;
       if (tableNames.length > 0) {
         var j = 0;
-        var indexNames = Object.keys(tables[tableNames[j]].indexes);
+        var indexNames = Object.keys(tables[tableNames[j]].indexOpts);
         var indexResults;
         indexResults = [];
         results.indexes[j] = indexResults;
@@ -106,7 +112,7 @@ function EndexObject() {
           i++;
           while (i-start >= indexNames.length && i < response.length){
             j++;
-            indexNames = Object.keys(tables[tableNames[j]].indexes);
+            indexNames = Object.keys(tables[tableNames[j]].indexOpts);
             indexResults = [];
             results.indexes[j] = indexResults;
             start = i;
