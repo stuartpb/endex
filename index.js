@@ -14,15 +14,15 @@ function EndexObject() {
     return obj;
   };
   obj.table = function endexSpecifyTable(name, opts) {
-    tables[name] = tables[name] || {indices: Object.create(null)};
+    tables[name] = tables[name] || {indexes: Object.create(null)};
     tables[name].opts = opts || tables[name].opts || {},
     currentTable = name;
     return obj;
   };
   obj.index = function endexSpecifyIndex(name, opts) {
     if (!currentTable) throw new Error('no table specified');
-    tables[currentTable].indices[name] = opts ||
-      tables[currentTable].indices[name] || {};
+    tables[currentTable].indexes[name] = opts ||
+      tables[currentTable].indexes[name] || {};
     return obj;
   };
 
@@ -63,12 +63,12 @@ function EndexObject() {
     // For each table (now that we've created all the tables)
     for (i=0; i < tableNames.length; i++) {
       tableName = tableNames[i];
-      var indices = tables[tableName].indices;
-      var indexNames = Object.keys(indices);
+      var indexes = tables[tableName].indexes;
+      var indexNames = Object.keys(indexes);
       // For each index to create under that table
       for (var j=0; j < indexNames.length; j++) {
         indexName = indexNames[j];
-        var indexOpts = indices[indexName];
+        var indexOpts = indexes[indexName];
         // Add a branch ensuring that index exists
         branches.push(r.branch(
           r.table(tableName).indexList().contains(indexName),
@@ -97,7 +97,7 @@ function EndexObject() {
       start = start + tableNames.length;
       if (tableNames.length > 0) {
         var j = 0;
-        var indexNames = Object.keys(tables[tableNames[j]].indices);
+        var indexNames = Object.keys(tables[tableNames[j]].indexes);
         var indexResults;
         indexResults = [];
         results.indexes[j] = indexResults;
@@ -106,7 +106,7 @@ function EndexObject() {
           i++;
           while (i-start >= indexNames.length && i < response.length){
             j++;
-            indexNames = Object.keys(tables[tableNames[j]].indices);
+            indexNames = Object.keys(tables[tableNames[j]].indexes);
             indexResults = [];
             results.indexes[j] = indexResults;
             start = i;
