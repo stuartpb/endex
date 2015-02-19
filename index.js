@@ -38,8 +38,10 @@ function EndexObject() {
       // Push a branch to ensure the DB exists
       branches.push(r.branch(
         r.dbList().contains(dbName),
-        r.expr({config_changes: [], dbs_created: 0}),
-        r.dbCreate(dbName)));
+        r.expr({config_changes: [], dbs_created: 0}).merge(
+          r.db(dbName).config()),
+        r.dbCreate(dbName).merge(
+          r.db(dbName).config())));
     }
 
     var tableNames = Object.keys(tables);
@@ -52,8 +54,10 @@ function EndexObject() {
       // Add a branch ensuring it exists
       branches.push(r.branch(
         r.tableList().contains(tableName),
-        r.expr({config_changes: [], tables_created: 0}),
-        r.tableCreate(tableName, tableOpts)));
+        r.expr({config_changes: [], tables_created: 0}).merge(
+          r.table(tableName).config()),
+        r.tableCreate(tableName, tableOpts).merge(
+          r.table(tableName).config())));
     }
 
     // For each table (now that we've created all the tables)
@@ -68,43 +72,43 @@ function EndexObject() {
         // Add a branch ensuring that index exists
         branches.push(r.branch(
           r.table(tableName).indexList().contains(indexName),
-          r.expr({created: 0}),
-          r.table(tableName).indexCreate(indexName, indexOpts)));
+          r.expr({created: 0}).merge(
+            r.table(tableName).indexStatus(indexName)),
+          r.table(tableName).indexCreate(indexName, indexOpts).merge(
+            r.table(tableName).indexStatus(indexName))));
       }
     }
 
     // Convert the expr response to something simpler
     function convertResponse(response) {
-      var results = {tables: []};
+      var results = {tables: [], indexes: []};
       var i=0;
       var start=0;
       if (dbName) {
-        results.dbCreated = (response[0].dbs_created > 0);
+        results.db = response[0];
         start++;
         i++;
       }
       while (i < start + tableNames.length) {
         tableName = tableNames[i-start];
-        results.tables[i-start]={
-          name: tableName,
-          created: (response[i].tables_created > 0),
-          indexList: []
-        };
+        results.tables[i-start]=response[i];
         i++;
       }
       start = start + tableNames.length;
       if (tableNames.length > 0) {
         var j = 0;
         var indexNames = Object.keys(tables[tableNames[j]].indices);
+        var indexResults;
+        indexResults = [];
+        results.indexes[j] = indexResults;
         while (i < response.length) {
-          results.tables[j].indexList[i-start] = {
-            name: indexNames[i-start],
-            created: (response[i].created > 0)
-          };
+          indexResults[i-start] = response[i];
           i++;
-          if (i-start >= indexNames.length && i < response.length){
+          while (i-start >= indexNames.length && i < response.length){
             j++;
             indexNames = Object.keys(tables[tableNames[j]].indices);
+            indexResults = [];
+            results.indexes[j] = indexResults;
             start = i;
           }
         }
