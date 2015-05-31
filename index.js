@@ -14,36 +14,32 @@ function EndexObject() {
     return obj;
   };
   obj.table = function endexSpecifyTable(name, opts) {
-    tables[name] = tables[name] || {
-      indexOpts: Object.create(null), indexFunctions: Object.create(null)};
+    tables[name] = tables[name] || {indexes: Object.create(null)};
     tables[name].opts = opts || tables[name].opts || {},
     currentTable = name;
     return obj;
   };
-  obj.index = function endexSpecifyIndex(name, func, opts) {
+  obj.index = function endexSpecifyIndex(name, opts) {
     if (!currentTable) throw new Error('no table specified');
-    tables[currentTable].indexOpts[name] = opts || func ||
-      tables[currentTable].indexOpts[name] || {};
-    tables[currentTable].indexFunctions[name] = opts && func;
+    tables[currentTable].indexes[name] = opts ||
+      tables[currentTable].indexes[name] || {};
     return obj;
   };
 
   // Execution.
   obj.run = function endexRun(conn, cb) {
     // Each r.branch for the expr to run.
-    var branches = [];
+    var exprObject = {tables: {}, indexes: {}};
 
     // If we're starting with a named DB
     if (dbName) {
       // Use the DB in the connection
       conn.use(dbName);
       // Push a branch to ensure the DB exists
-      branches.push(r.branch(
+      exprObject.db = r.branch(
         r.dbList().contains(dbName),
-        r.expr({config_changes: [], dbs_created: 0}).merge(
-          r.db(dbName).config()),
-        r.dbCreate(dbName).merge(
-          r.db(dbName).config())));
+        r.expr({config_changes: [], dbs_created: 0}),
+        r.dbCreate(dbName));
     }
 
     var tableNames = Object.keys(tables);
@@ -54,83 +50,41 @@ function EndexObject() {
       tableName = tableNames[i];
       var tableOpts = tables[tableName].opts;
       // Add a branch ensuring it exists
-      branches.push(r.branch(
+      exprObject.tables[tableName] = r.branch(
         r.tableList().contains(tableName),
-        r.expr({config_changes: [], tables_created: 0}).merge(
-          r.table(tableName).config()),
-        r.tableCreate(tableName, tableOpts).merge(
-          r.table(tableName).config())));
+        r.expr({config_changes: [], tables_created: 0}),
+        r.tableCreate(tableName, tableOpts));
     }
 
     // For each table (now that we've created all the tables)
     for (i=0; i < tableNames.length; i++) {
       tableName = tableNames[i];
-      var indexOpts = tables[tableName].indexOpts;
-      var indexFunctions = tables[tableName].indexFunctions;
-      var indexNames = Object.keys(indexOpts);
+      var indexes = tables[tableName].indexes;
+      var indexNames = Object.keys(indexes);
+      if (indexNames.length > 0) {
+        var exprTableIndexes = {};
+        exprObject.indexes[tableName] = exprTableIndexes;
+      }
       // For each index to create under that table
       for (var j=0; j < indexNames.length; j++) {
         indexName = indexNames[j];
-        var indexOptObj = indexOpts[indexName];
-        var indexFunc = indexFunctions[indexName];
+        var indexOpts = indexes[indexName];
         // Add a branch ensuring that index exists
-        branches.push(r.branch(
+        exprTableIndexes[indexName] = r.branch(
           r.table(tableName).indexList().contains(indexName),
-          r.expr({created: 0}).merge(
-            r.table(tableName).indexStatus(indexName)),
-          (indexFunc ?
-            r.table(tableName).indexCreate(indexName, indexFunc, indexOptObj) :
-            r.table(tableName).indexCreate(indexName, indexOptObj)).merge(
-            r.table(tableName).indexStatus(indexName))));
+          r.expr({created: 0}),
+          r.table(tableName).indexCreate(indexName, indexOpts).merge(
+            r.table(tableName).indexStatus(indexName)));
       }
-    }
-
-    // Convert the expr response to something simpler
-    function convertResponse(response) {
-      var results = {tables: [], indexes: []};
-      var i=0;
-      var start=0;
-      if (dbName) {
-        results.db = response[0];
-        start++;
-        i++;
-      }
-      while (i < start + tableNames.length) {
-        tableName = tableNames[i-start];
-        results.tables[i-start]=response[i];
-        i++;
-      }
-      start = start + tableNames.length;
-      if (tableNames.length > 0) {
-        var j = 0;
-        var indexNames = Object.keys(tables[tableNames[j]].indexOpts);
-        var indexResults;
-        indexResults = [];
-        results.indexes[j] = indexResults;
-        while (i < response.length) {
-          indexResults[i-start] = response[i];
-          i++;
-          while (i-start >= indexNames.length && i < response.length){
-            j++;
-            indexNames = Object.keys(tables[tableNames[j]].indexOpts);
-            indexResults = [];
-            results.indexes[j] = indexResults;
-            start = i;
-          }
-        }
-      }
-      return results;
     }
 
     // Use callback or return promise
-    if (cb) r.expr(branches).run(conn, function(err, response) {
+    if (cb) r.expr(exprObject).run(conn, function(err, response) {
       if (err) return cb(err);
-      else return cb(null, convertResponse(response));
+      else return cb(null, response);
     });
     else return new Promise(function(resolve, reject) {
-      r.expr(branches).run(conn).then(
-        function(response){return resolve(convertResponse(response))},
-      reject);
+      r.expr(exprObject).run(conn).then(resolve, reject);
     });
   };
   return obj;
