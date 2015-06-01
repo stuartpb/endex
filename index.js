@@ -1,6 +1,7 @@
 var Promise = require('bluebird');
 
 function EndexObject(opts) {
+  opts = opts || {};
   // See https://github.com/stuartpb/endex/issues/1
   var r = opts.r || require('rethinkdb');
 
