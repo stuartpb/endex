@@ -1,6 +1,6 @@
 {
   "name": "endex",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Ensure tables and indices on a database",
   "main": "index.js",
   "scripts": {
