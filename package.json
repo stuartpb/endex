@@ -17,8 +17,10 @@
   },
   "homepage": "https://github.com/stuartpb/endex",
   "dependencies": {
-    "bluebird": "^2.9.10",
-    "rethinkdb": "^1.16.0"
+    "bluebird": "^2.9.10"
+  },
+  "peerDependencies": {
+    "rethinkdb": ">=1.16.0 <3"
   },
   "devDependencies": {
     "envigor": "^0.8.1",

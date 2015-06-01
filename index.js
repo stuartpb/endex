@@ -1,7 +1,9 @@
-var r = require('rethinkdb');
 var Promise = require('bluebird');
 
-function EndexObject() {
+function EndexObject(opts) {
+  // See https://github.com/stuartpb/endex/issues/1
+  var r = opts.r || require('rethinkdb');
+
   // Local vars.
   var obj = {};
   var tables = Object.create(null);
