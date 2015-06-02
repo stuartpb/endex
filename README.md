@@ -21,7 +21,7 @@ r.connect().then(function(connection){
       .index('posterId')
     .table('teams')
       .index('members', {multi: true})
-    .run(conn);
+    .run(connection);
 }).then(function(results){
   // set up routes or whatever
 });
@@ -51,10 +51,10 @@ var r = require('rethinkdbdash')(
 );
 var endex = require('endex');
 r.connect().then(function(connection) {
-  return endex(r).db('example')
+  return endex({ r: r }).db('example')
     .table('etc')
       .index('yadda_yadda_yadda')
-    .run(conn);
+    .run(connection);
 }).then(function(results){
   // set up routes or whatever
 });
