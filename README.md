@@ -66,8 +66,9 @@ Because the `rethinkdb` driver contains a reference to itself as `r.r`,
 you may use `r` as your options argument to the `endex` constructor:
 
 ```js
-var endex;
 var r = require('rethinkdb');
+var endex;
+
 endex = require('endex')(r);
 // will work the same as
 endex = require('endex')({r:r});
