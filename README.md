@@ -59,3 +59,21 @@ r.connect().then(function(connection) {
   // set up routes or whatever
 });
 ```
+
+## Using the driver itself as the options object
+
+Because the `rethinkdb` driver contains a reference to itself as `r.r`,
+you may use `r` as your options argument to the `endex` constructor:
+
+```js
+var endex;
+var r = require('rethinkdb');
+endex = require('endex')(r);
+// will work the same as
+endex = require('endex')({r:r});
+```
+
+Depending on your `r` implementation, this *may* break if `endex` ever
+goes on to look for options that have the same name as a method or
+property of the driver: in this case, you will need to create an
+explicit options object with `{r:r}` to pass in instead.
